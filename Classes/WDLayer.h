@@ -59,6 +59,10 @@
 
 @property (nonatomic) CGAffineTransform transform;
 @property (nonatomic) BOOL clipWhenTransformed;
+@property (nonatomic) BOOL isClear;
+
+@property (nonatomic, strong) NSMutableArray<WDPath *> *strokePaths;
+
 
 + (WDLayer *) layer;
 - (id) initWithUUID:(NSString *)uuid;
@@ -66,10 +70,13 @@
 # pragma mark - Layer Operations
 
 - (void) clear;
+- (void) testClear;
 - (void) fill:(WDColor *)color;
 - (void) merge:(WDLayer *)layer;
 - (void) duplicateLayer:(WDLayer *)layer copyThumbnail:(BOOL)copyThumbnail;
-- (void) commitStroke:(CGRect)bounds color:(WDColor *)color erase:(BOOL)erase undoable:(BOOL)undoable;
+- (void) commitStroke:(CGRect)bounds color:(WDColor *)color erase:(BOOL)erase undoable:(BOOL)undoable path:(WDPath *)path;
+
+- (void) testCommitStroke:(CGRect)bounds color:(WDColor *)color erase:(BOOL)erase index:(NSInteger)index total:(NSInteger)total;
 - (void) renderImage:(UIImage *)image transform:(CGAffineTransform)transform;
 - (void) drawFragment:(WDPaintingFragment *)fragment;
 
@@ -86,6 +93,7 @@
 #pragma mark - Imaging
 
 - (NSData *) imageDataInRect:(CGRect)rect;
+- (UIImage *) imageInRect:(CGRect)rect;
 
 # pragma mark - Thumbnail
 

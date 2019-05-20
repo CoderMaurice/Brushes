@@ -1623,13 +1623,23 @@
                 }
                 canvas_.painting = self.painting;
             } else {
-                canvas_ = [[WDCanvas alloc] initWithFrame:self.view.bounds];
+                
+                UIScrollView *scroll11 = [[UIScrollView alloc] initWithFrame:CGRectMake(0, 44, self.view.frame.size.width, self.view.frame.size.height - 44 * 2 - 200)];
+                
+                canvas_ = [[WDCanvas alloc] initWithFrame:CGRectMake(0, 0, self.view.frame.size.width, self.view.frame.size.height - 44 * 2)];
                 canvas_.painting = self.painting;
                 canvas_.controller = self;
-
-                [[WDStylusManager sharedStylusManager].pogoManager registerView:canvas_];
+                scroll11.contentSize = canvas_.bounds.size;
+                [self.view insertSubview:scroll11 atIndex:0];
+                [scroll11 insertSubview:canvas_ atIndex:0];
                 
-                [self.view insertSubview:canvas_ atIndex:0];
+//                canvas_ = [[WDCanvas alloc] initWithFrame:self.view.bounds];
+//                canvas_.painting = self.painting;
+//                canvas_.controller = self;
+//
+//                [[WDStylusManager sharedStylusManager].pogoManager registerView:canvas_];
+//
+//                [self.view insertSubview:canvas_ atIndex:0];
             }
             
             if (!canvas_.hasEverBeenScaledToFit) {

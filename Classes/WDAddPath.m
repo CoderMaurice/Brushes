@@ -136,7 +136,7 @@
     if (painting != self.sourcePainting) {
         if (pathBounds_.size.width * pathBounds_.size.height > 0) {
             WDLayer *layer = [painting layerWithUUID:self.layerUUID];
-            [layer commitStroke:pathBounds_ color:path.color erase:erase undoable:undoable_];
+            [layer commitStroke:pathBounds_ color:path.color erase:erase undoable:undoable_ path:nil];
         } else if ([path.nodes count] > 0) {
             WDLog(@"Empty path bounds with path of length %d", [path.nodes count]);
         }

@@ -25,7 +25,8 @@
 #import "WDTypedData.h"
 #import "WDUtilities.h"
 #import "UIImage+Additions.h"
-
+#import "WDPath.h"
+#import "WDBrush.h"
 #import "gl_matrix.h"
 
 #define kPreviewInset               1
@@ -137,7 +138,7 @@ static NSString *WDVisibleKey = @"visible";
     if (!painting_ || painting_.isSuppressingNotifications) {
         return YES;
     }
-
+    
     return NO;
 }
 
@@ -152,15 +153,15 @@ static NSString *WDVisibleKey = @"visible";
     if (blendMode == blendMode_) {
         return;
     }
-
+    
     [[[self.painting undoManager] prepareWithInvocationTarget:self] setBlendMode:blendMode_];
-
+    
     blendMode_ = blendMode;
-
+    
     if (!self.isSuppressingNotifications) {
         NSDictionary *userInfo = @{@"layer": self,
-                                  @"rect": [NSValue valueWithCGRect:self.painting.bounds]};
-
+                                   @"rect": [NSValue valueWithCGRect:self.painting.bounds]};
+        
         [[NSNotificationCenter defaultCenter] postNotificationName:WDLayerBlendModeChanged
                                                             object:self.painting
                                                           userInfo:userInfo];
@@ -172,15 +173,15 @@ static NSString *WDVisibleKey = @"visible";
     if (opacity == opacity_) {
         return;
     }
-
+    
     [[[self.painting undoManager] prepareWithInvocationTarget:self] setOpacity:opacity_];
-
+    
     opacity_ = WDClamp(0.0f, 1.0f, opacity);
-
+    
     if (!self.isSuppressingNotifications) {
         NSDictionary *userInfo = @{@"layer": self,
-                                  @"rect": [NSValue valueWithCGRect:self.painting.bounds]};
-
+                                   @"rect": [NSValue valueWithCGRect:self.painting.bounds]};
+        
         [[NSNotificationCenter defaultCenter] postNotificationName:WDLayerOpacityChanged
                                                             object:self.painting
                                                           userInfo:userInfo];
@@ -200,6 +201,27 @@ static NSString *WDVisibleKey = @"visible";
                                                             object:self.painting
                                                           userInfo:nil];
     }
+}
+
+- (UIImage *) imageInRect:(CGRect)rect
+{
+    NSData *data = [self imageDataInRect:rect];
+    
+    size_t width = rect.size.width;
+    size_t height = rect.size.height;
+    
+    CGColorSpaceRef colorSpaceRef = CGColorSpaceCreateDeviceRGB();
+    CGContextRef ctx = CGBitmapContextCreate((void *) data.bytes, width, height, 8, width*4,
+                                             colorSpaceRef, kCGBitmapByteOrderDefault | kCGImageAlphaPremultipliedLast);
+    CGImageRef imageRef = CGBitmapContextCreateImage(ctx);
+    
+    UIImage *result = [UIImage imageWithCGImage:imageRef];
+    
+    CGImageRelease(imageRef);
+    CGContextRelease(ctx);
+    CGColorSpaceRelease(colorSpaceRef);
+    
+    return result;
 }
 
 - (NSData *) imageDataInRect:(CGRect)rect
@@ -289,7 +311,7 @@ static NSString *WDVisibleKey = @"visible";
     
     if (!self.isSuppressingNotifications) {
         NSDictionary *userInfo = @{@"layer": self,
-                                  @"rect": [NSValue valueWithCGRect:fragment.bounds]};
+                                   @"rect": [NSValue valueWithCGRect:fragment.bounds]};
         
         [[NSNotificationCenter defaultCenter] postNotificationName:WDLayerContentsChangedNotification
                                                             object:self.painting
@@ -318,9 +340,9 @@ static NSString *WDVisibleKey = @"visible";
     if (!thumbnail_) {
         return;
     }
-
+    
     thumbnail_ = nil;
-
+    
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(notifyThumbnailChanged:) object:nil];
     [self performSelector:@selector(notifyThumbnailChanged:) withObject:nil afterDelay:0];
 }
@@ -347,7 +369,7 @@ static NSString *WDVisibleKey = @"visible";
     
     if (!self.isSuppressingNotifications) {
         NSDictionary *userInfo = @{@"layer": self,
-                                  @"rect": [NSValue valueWithCGRect:bounds]};
+                                   @"rect": [NSValue valueWithCGRect:bounds]};
         
         [[NSNotificationCenter defaultCenter] postNotificationName:WDLayerContentsChangedNotification
                                                             object:self.painting
@@ -367,16 +389,16 @@ static NSString *WDVisibleKey = @"visible";
 - (NSInteger) thumbnailImageHeight
 {
     NSInteger   height = self.maxThumbnailDimension;
-
+    
     if (self.painting.width > self.painting.height) {
         height = floorf(self.painting.height / self.painting.width * height);
     }
-
+    
     return height;
 }
 
 - (UIImage *) thumbnail
-{    
+{
     if (!thumbnail_) {
 #if WD_DEBUG
         NSDate *date = [NSDate date];
@@ -384,7 +406,7 @@ static NSString *WDVisibleKey = @"visible";
         // make sure the painting's context is current
         [EAGLContext setCurrentContext:self.painting.context];
         WDCheckGLError();
-
+        
         GLuint width, height;
         float paintingWidth = self.painting.width;
         float paintingHeight = self.painting.height;
@@ -398,29 +420,29 @@ static NSString *WDVisibleKey = @"visible";
             height = (GLuint) self.maxThumbnailDimension;
             width = floorf(aspectRatio * height);
         }
-
+        
         width *= [UIScreen mainScreen].scale;
         height *= [UIScreen mainScreen].scale;
         
         GLuint framebuffer;
         glGenFramebuffers(1, &framebuffer);
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
+        
         GLuint colorRenderbuffer;
         glGenRenderbuffers(1, &colorRenderbuffer);
         glBindRenderbuffer(GL_RENDERBUFFER, colorRenderbuffer);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8_OES, width, height);
-
+        
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colorRenderbuffer);
         GLint status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-
+        
         if (status == GL_FRAMEBUFFER_COMPLETE) {
             glViewport(0, 0, self.painting.width, self.painting.height);
             
             WDShader *blitShader = [self.painting getShader:@"blit"];
-
+            
             glUseProgram(blitShader.program);
-
+            
             GLsizei viewportWidth = MAX(width, paintingWidth);
             GLsizei viewportHeight = MAX(height, paintingHeight);
             glViewport(0, 0, viewportWidth, viewportHeight);
@@ -429,42 +451,42 @@ static NSString *WDVisibleKey = @"visible";
             GLfloat proj[16], effectiveProj[16], final[16];
             // setup projection matrix (orthographic)
             mat4f_LoadOrtho(0, paintingWidth, 0, paintingHeight, -1.0f, 1.0f, proj);
-
+            
             CGAffineTransform scale = CGAffineTransformMakeScale((float) width / viewportWidth,
                                                                  (float) height / viewportHeight);
             mat4f_LoadCGAffineTransform(effectiveProj, scale);
             mat4f_MultiplyMat4f(proj, effectiveProj, final);
-
+            
             glUniformMatrix4fv([blitShader locationForUniform:@"modelViewProjectionMatrix"], 1, GL_FALSE, final);
             glUniform1i([blitShader locationForUniform:@"texture"], (GLuint) 0);
             glUniform1f([blitShader locationForUniform:@"opacity"], 1.0f); // fully opaque thumb
-
+            
             glActiveTexture(GL_TEXTURE0);
             // Bind the texture to be used
             glBindTexture(GL_TEXTURE_2D, self.textureName);
-
+            
             // clear the buffer to get a transparent background
             glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
             glClear(GL_COLOR_BUFFER_BIT);
-
+            
             // set up premultiplied normal blend
             glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
+            
             glBindVertexArrayOES(painting_.quadVAO);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
             glBindVertexArrayOES(0);
-
+            
             // color buffer should now have layer contents
             unsigned char *pixels = malloc(sizeof(unsigned char) * width * 4 * height);
             glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-
+            
             CGColorSpaceRef colorSpaceRef = CGColorSpaceCreateDeviceRGB();
             CGContextRef ctx = CGBitmapContextCreate(pixels, width, height, 8, width*4,
                                                      colorSpaceRef, kCGBitmapByteOrderDefault | kCGImageAlphaPremultipliedLast);
             CGImageRef imageRef = CGBitmapContextCreateImage(ctx);
-
+            
             thumbnail_ = [[UIImage alloc] initWithCGImage:imageRef scale:[UIScreen mainScreen].scale orientation:UIImageOrientationUp];
-
+            
             CGImageRelease(imageRef);
             CGContextRelease(ctx);
             CGColorSpaceRelease(colorSpaceRef);
@@ -473,7 +495,7 @@ static NSString *WDVisibleKey = @"visible";
             NSLog(@"-[WDLayer thumbnail]: Incomplete Framebuffer!");
             WDCheckGLError();
         }
-
+        
         glDeleteFramebuffers(1, &framebuffer);
         glDeleteRenderbuffers(1, &colorRenderbuffer);
         WDCheckGLError();
@@ -509,13 +531,13 @@ static NSString *WDVisibleKey = @"visible";
 - (void) setVisible:(BOOL)visible
 {
     [[[self.painting undoManager] prepareWithInvocationTarget:self] setVisible:visible_];
-
+    
     visible_ = visible;
-
+    
     if (!self.isSuppressingNotifications) {
         NSDictionary *userInfo = @{@"layer": self,
-                                  @"rect": [NSValue valueWithCGRect:self.painting.bounds]};
-
+                                   @"rect": [NSValue valueWithCGRect:self.painting.bounds]};
+        
         [[NSNotificationCenter defaultCenter] postNotificationName:WDLayerVisibilityChanged
                                                             object:self.painting
                                                           userInfo:userInfo];
@@ -525,13 +547,13 @@ static NSString *WDVisibleKey = @"visible";
 - (void) setLocked:(BOOL)locked
 {
     [[[self.painting undoManager] prepareWithInvocationTarget:self] setLocked:locked_];
-
+    
     locked_ = locked;
-
+    
     if (!self.isSuppressingNotifications) {
-
+        
         NSDictionary *userInfo = @{@"layer": self};
-
+        
         [[NSNotificationCenter defaultCenter] postNotificationName:WDLayerLockedStatusChanged
                                                             object:self.painting
                                                           userInfo:userInfo];
@@ -561,18 +583,48 @@ static NSString *WDVisibleKey = @"visible";
     [coder encodeBoolean:alphaLocked_ forKey:WDAlphaLockedKey];
     [coder encodeInteger:blendMode_ forKey:WDBlendModeKey];
     [coder encodeString:uuid_ forKey:WDUUIDKey];
-
+    [coder encodeArray:self.strokePaths forKey:@"strokePaths"];
     if (opacity_ != 1.f) {
         [coder encodeFloat:opacity_ forKey:WDOpacityKey];
     }
-
+    
     if (deep) {
         WDSaveStatus wasSaved = self.isSaved;
         self.isSaved = kWDSaveStatusTentative;
         id data = (wasSaved == kWDSaveStatusSaved) ? [NSNull null] : self.imageData; // don't bother retrieving imageData if we're not saving it
+        //        [self saveImage];
         WDTypedData *image = [WDTypedData data:data mediaType:@"image/x-brushes-layer" compress:YES uuid:self.uuid isSaved:wasSaved];
         [coder encodeDataProvider:image forKey:WDImageDataKey];
     }
+}
+
+- (void)saveImage
+{
+    
+    CFTimeInterval startTime = CACurrentMediaTime();
+    
+    NSData *data = self.imageData;
+    
+    size_t width = self.painting.bounds.size.width;
+    size_t height = self.painting.bounds.size.height;
+    
+    CGColorSpaceRef colorSpaceRef = CGColorSpaceCreateDeviceRGB();
+    CGContextRef ctx = CGBitmapContextCreate((void *) data.bytes, width, height, 8, width*4,
+                                             colorSpaceRef, kCGBitmapByteOrderDefault | kCGImageAlphaPremultipliedLast);
+    CGImageRef imageRef = CGBitmapContextCreateImage(ctx);
+    
+    UIImage *result = [UIImage imageWithCGImage:imageRef];
+    
+    CGImageRelease(imageRef);
+    CGContextRelease(ctx);
+    CGColorSpaceRelease(colorSpaceRef);
+    
+    //    UIImageWriteToSavedPhotosAlbum(result, nil, nil, nil);
+    NSLog(@"????!!!!!!!!!!!!!!!!!!!!???? %@", result);
+    
+    CFTimeInterval endTime = CACurrentMediaTime();
+    CFTimeInterval consumingTime = endTime - startTime;
+    NSLog(@"耗时：%@", @(consumingTime));
 }
 
 - (void) updateWithWDDecoder:(id<WDDecoder>)decoder deep:(BOOL)deep
@@ -596,13 +648,13 @@ static NSString *WDVisibleKey = @"visible";
     if (blendMode != self.blendMode) {
         self.blendMode = blendMode;
     }
-
-
+    self.strokePaths = [decoder decodeArrayForKey:@"strokePaths"];
+    
     uuid_ = [decoder decodeStringForKey:WDUUIDKey];
-
+    
     id opacity = [decoder decodeObjectForKey:WDOpacityKey];
     self.opacity = opacity ? [opacity floatValue] : 1.f;
-
+    
     if (deep) {
         [decoder dispatch:^{
             loadedImageData_ = [[decoder decodeDataForKey:WDImageDataKey] decompress];
@@ -685,7 +737,7 @@ static NSString *WDVisibleKey = @"visible";
             // unbind VAO
             glBindVertexArrayOES(0);
         }
-
+        
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     } else if (hueSaturation_ && !inHueSaturation) {
         glDeleteTextures(1, &hueChromaLuma_);
@@ -704,11 +756,11 @@ static NSString *WDVisibleKey = @"visible";
 - (void) basicBlit:(GLfloat *)proj
 {
     WDShader *blitShader = [self.painting getShader:@"blit"];
-	glUseProgram(blitShader.program);
+    glUseProgram(blitShader.program);
     
-	glUniformMatrix4fv([blitShader locationForUniform:@"modelViewProjectionMatrix"], 1, GL_FALSE, proj);
-	glUniform1i([blitShader locationForUniform:@"texture"], 0);
-	glUniform1f([blitShader locationForUniform:@"opacity"], opacity_);
+    glUniformMatrix4fv([blitShader locationForUniform:@"modelViewProjectionMatrix"], 1, GL_FALSE, proj);
+    glUniform1i([blitShader locationForUniform:@"texture"], 0);
+    glUniform1f([blitShader locationForUniform:@"opacity"], opacity_);
     
     // Bind the texture to be used
     glActiveTexture(GL_TEXTURE0);
@@ -739,11 +791,11 @@ static NSString *WDVisibleKey = @"visible";
         blitShader = [self.painting getShader:@"blit"];
     }
     
-	glUseProgram(blitShader.program);
+    glUseProgram(blitShader.program);
     
-	glUniformMatrix4fv([blitShader locationForUniform:@"modelViewProjectionMatrix"], 1, GL_FALSE, proj);
-	glUniform1i([blitShader locationForUniform:@"texture"], 0);
-	glUniform1f([blitShader locationForUniform:@"opacity"], opacity_);
+    glUniformMatrix4fv([blitShader locationForUniform:@"modelViewProjectionMatrix"], 1, GL_FALSE, proj);
+    glUniform1i([blitShader locationForUniform:@"texture"], 0);
+    glUniform1f([blitShader locationForUniform:@"opacity"], opacity_);
     
     if (self.colorBalance) {
         glUniform1f([blitShader locationForUniform:@"redShift"], colorBalance_.redShift);
@@ -764,25 +816,25 @@ static NSString *WDVisibleKey = @"visible";
     } else {
         glBindTexture(GL_TEXTURE_2D, self.textureName);
     }
-        
+    
     [self configureBlendMode];
     
     glBindVertexArrayOES(self.painting.quadVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
+    
     // unbind VAO
     glBindVertexArrayOES(0);
 }
 
 - (void) blit:(GLfloat *)proj withTransform:(CGAffineTransform)tX
 {
-	// use shader program
+    // use shader program
     WDShader *blitShader = [self.painting getShader:@"blit"];
-	glUseProgram(blitShader.program);
+    glUseProgram(blitShader.program);
     
-	glUniformMatrix4fv([blitShader locationForUniform:@"modelViewProjectionMatrix"], 1, GL_FALSE, proj);
-	glUniform1i([blitShader locationForUniform:@"texture"], 0);
-	glUniform1f([blitShader locationForUniform:@"opacity"], opacity_);
+    glUniformMatrix4fv([blitShader locationForUniform:@"modelViewProjectionMatrix"], 1, GL_FALSE, proj);
+    glUniform1i([blitShader locationForUniform:@"texture"], 0);
+    glUniform1f([blitShader locationForUniform:@"opacity"], opacity_);
     
     // Bind the texture to be used
     glActiveTexture(GL_TEXTURE0);
@@ -813,26 +865,26 @@ static NSString *WDVisibleKey = @"visible";
         glDisable(GL_STENCIL_TEST);
     }
     WDCheckGLError();
-
+    
 }
 
 - (void) blit:(GLfloat *)proj withMask:(GLuint)maskTexture color:(WDColor *)color
 {
-	// use shader program
+    // use shader program
     WDShader *blitShader = [self.painting getShader:@"blitWithMask"];
-	glUseProgram(blitShader.program);
+    glUseProgram(blitShader.program);
     
-	glUniformMatrix4fv([blitShader locationForUniform:@"modelViewProjectionMatrix"], 1, GL_FALSE, proj);
-	glUniform1i([blitShader locationForUniform:@"texture"], 0);
-	glUniform1f([blitShader locationForUniform:@"opacity"], opacity_);
-	glUniform4f([blitShader locationForUniform:@"color"], color.red, color.green, color.blue, color.alpha);
+    glUniformMatrix4fv([blitShader locationForUniform:@"modelViewProjectionMatrix"], 1, GL_FALSE, proj);
+    glUniform1i([blitShader locationForUniform:@"texture"], 0);
+    glUniform1f([blitShader locationForUniform:@"opacity"], opacity_);
+    glUniform4f([blitShader locationForUniform:@"color"], color.red, color.green, color.blue, color.alpha);
     glUniform1i([blitShader locationForUniform:@"mask"], 1);
     glUniform1i([blitShader locationForUniform:@"lockAlpha"], self.alphaLocked);
     
     // Bind the texture to be used
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, self.textureName);
-                                  
+    
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, maskTexture);
     
@@ -847,13 +899,13 @@ static NSString *WDVisibleKey = @"visible";
 
 - (void) blit:(GLfloat *)proj withEraseMask:(GLuint)maskTexture
 {
-	// use shader program
+    // use shader program
     WDShader *blitShader = [self.painting getShader:@"blitWithEraseMask"];
-	glUseProgram(blitShader.program);
+    glUseProgram(blitShader.program);
     
-	glUniformMatrix4fv([blitShader locationForUniform:@"modelViewProjectionMatrix"], 1, GL_FALSE, proj);
-	glUniform1i([blitShader locationForUniform:@"texture"], 0);
-	glUniform1f([blitShader locationForUniform:@"opacity"], opacity_);
+    glUniformMatrix4fv([blitShader locationForUniform:@"modelViewProjectionMatrix"], 1, GL_FALSE, proj);
+    glUniform1i([blitShader locationForUniform:@"texture"], 0);
+    glUniform1f([blitShader locationForUniform:@"opacity"], opacity_);
     glUniform1i([blitShader locationForUniform:@"mask"], 1);
     
     // Bind the texture to be used
@@ -877,18 +929,15 @@ static NSString *WDVisibleKey = @"visible";
     [self modifyWithBlock:modifyBlock newTexture:useNewTexture undoBits:undo bounds:self.painting.bounds];
 }
 
-- (void) modifyWithBlock:(void (^)())modifyBlock newTexture:(BOOL)useNewTexture undoBits:(BOOL)undo bounds:(CGRect)bounds
+- (void) testModifyWithBlock:(void (^)())modifyBlock
 {
-    self.isSaved = kWDSaveStatusUnsaved;
-
-    if (undo) {
-        [self registerUndoInRect:self.painting.bounds];
-    } // otherwise assume caller is naturally invertible (flip, etc.) and handles its own undo
+    self.isSaved = kWDSaveStatusSaved;
+    NSLog(@"modify开始");
     
     glBindFramebuffer(GL_FRAMEBUFFER, self.painting.reusableFramebuffer);
     
-    GLuint tex = useNewTexture ? [self.painting generateTexture:(GLubyte *) loadedImageData_.bytes] : self.textureName;
-
+    GLuint tex = self.textureName;
+    
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
     
     GLuint status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -902,12 +951,41 @@ static NSString *WDVisibleKey = @"visible";
     }
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    NSLog(@"modify结束");
+}
+
+- (void) modifyWithBlock:(void (^)())modifyBlock newTexture:(BOOL)useNewTexture undoBits:(BOOL)undo bounds:(CGRect)bounds
+{
+    self.isSaved = kWDSaveStatusUnsaved;
+    //    NSLog(@"modify开始");
+    if (undo) {
+        [self registerUndoInRect:self.painting.bounds];
+    } // otherwise assume caller is naturally invertible (flip, etc.) and handles its own undo
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, self.painting.reusableFramebuffer);
+    
+    GLuint tex = useNewTexture ? [self.painting generateTexture:(GLubyte *) loadedImageData_.bytes] : self.textureName;
+    
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+    
+    GLuint status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    
+    if (status == GL_FRAMEBUFFER_COMPLETE) {
+        glViewport(0, 0, self.painting.width, self.painting.height);
+        
+        WDCheckGLError();
+        modifyBlock();
+        WDCheckGLError();
+    }
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    //    NSLog(@"modify结束");
     
     [self invalidateThumbnail];
     
-    if (!self.isSuppressingNotifications) {
+    if (!self.isSuppressingNotifications && !CGRectEqualToRect(bounds, CGRectZero)) {
         NSDictionary *userInfo = @{@"layer": self,
-                                  @"rect": [NSValue valueWithCGRect:bounds]};
+                                   @"rect": [NSValue valueWithCGRect:bounds]};
         
         [[NSNotificationCenter defaultCenter] postNotificationName:WDLayerContentsChangedNotification
                                                             object:self.painting
@@ -923,7 +1001,7 @@ static NSString *WDVisibleKey = @"visible";
 }
 
 - (void) duplicateLayer:(WDLayer *)layer copyThumbnail:(BOOL)copyThumbnail
-{   
+{
     [self modifyWithBlock:^{
         // use shader program
         WDShader *blitShader = [self.painting getShader:@"nonPremultipliedBlit"];
@@ -1005,15 +1083,26 @@ static NSString *WDVisibleKey = @"visible";
         // unbind VAO
         glBindVertexArrayOES(0);
     } newTexture:YES undoBits:YES];
-     
+    
     // we're now at 100% opacity
     [self setOpacity:1.0f];
 }
 
-- (void) commitStroke:(CGRect)bounds color:(WDColor *)color erase:(BOOL)erase undoable:(BOOL)undoable
+
+- (void) commitStroke:(CGRect)bounds color:(WDColor *)color erase:(BOOL)erase undoable:(BOOL)undoable path:(WDPath *)path
 {
     if (undoable) {
         [self registerUndoInRect:bounds];
+    }
+    
+    if (path) {
+        WDPath *subpath = [[WDPath alloc] init];
+        subpath.brush = path.brush;
+        subpath.color = path.color;
+        subpath.scale = path.scale; // do before setting nodes to avoid double scaling!
+        subpath.nodes = [path.nodes copy];
+        subpath.action = erase ? WDPathActionErase : WDPathActionPaint;
+        [self.strokePaths addObject:subpath];
     }
     
     [self.painting beginSuppressingNotifications];
@@ -1060,12 +1149,66 @@ static NSString *WDVisibleKey = @"visible";
     [self.painting endSuppressingNotifications];
 }
 
+- (void) testCommitStroke:(CGRect)bounds color:(WDColor *)color erase:(BOOL)erase index:(NSInteger)index total:(NSInteger)total
+{
+    
+    [self testModifyWithBlock:^{
+        // handle viewing matrices
+        GLfloat proj[16];
+        // setup projection matrix (orthographic)
+        mat4f_LoadOrtho(0, self.painting.width, 0, self.painting.height, -1.0f, 1.0f, proj);
+        
+        WDShader *shader = erase ? [self.painting getShader:@"compositeWithEraseMask"] : [self.painting getShader:@"compositeWithMask"];
+        glUseProgram(shader.program);
+        
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, self.textureName);
+        // temporarily turn off linear interpolation to work around "emboss" bug
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, self.painting.activePaintTexture);
+        
+        glUniform1i([shader locationForUniform:@"texture"], 0);
+        glUniform1i([shader locationForUniform:@"mask"], 1);
+        glUniformMatrix4fv([shader locationForUniform:@"modelViewProjectionMatrix"], 1, GL_FALSE, proj);
+        glUniform1i([shader locationForUniform:@"lockAlpha"], self.alphaLocked);
+        
+        if (!erase) {
+            glUniform4f([shader locationForUniform:@"color"], color.red, color.green, color.blue, color.alpha);
+        }
+        
+        glBlendFunc(GL_ONE, GL_ZERO);
+        
+        glBindVertexArrayOES(self.painting.quadVAO);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        
+        // unbind VAO
+        glBindVertexArrayOES(0);
+        
+        // turn linear interpolation back on
+        glBindTexture(GL_TEXTURE_2D, self.textureName);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    }];
+}
+
 - (void) clear
 {
     [self modifyWithBlock:^{
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT);
     } newTexture:NO undoBits:YES];
+}
+
+- (void) testClear
+{
+    if (!_isClear) {
+        [self modifyWithBlock:^{
+            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+        } newTexture:NO undoBits:NO];
+        _isClear = YES;
+    }
 }
 
 - (void) fill:(WDColor *)color
@@ -1189,7 +1332,7 @@ static NSString *WDVisibleKey = @"visible";
     } else {
         return;
     }
-        
+    
     [self modifyWithBlock:^{
         // handle viewing matrices
         GLfloat proj[16];
@@ -1320,7 +1463,7 @@ static NSString *WDVisibleKey = @"visible";
             
             if (!self.isSuppressingNotifications) {
                 NSDictionary *userInfo = @{@"layer": self,
-                                          @"rect": [NSValue valueWithCGRect:fragment_.bounds]};
+                                           @"rect": [NSValue valueWithCGRect:fragment_.bounds]};
                 
                 [[NSNotificationCenter defaultCenter] postNotificationName:WDLayerContentsChangedNotification
                                                                     object:self.painting
@@ -1337,6 +1480,14 @@ static NSString *WDVisibleKey = @"visible";
 - (NSString *) description
 {
     return [NSString stringWithFormat:@"%@ %@", [super description], self.uuid];
+}
+
+- (NSMutableArray *)strokePaths
+{
+    if (!_strokePaths) {
+        _strokePaths = [NSMutableArray array];
+    }
+    return _strokePaths;
 }
 
 - (void) freeze

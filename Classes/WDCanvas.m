@@ -86,37 +86,37 @@ NSString *WDGestureEndedNotification = @"WDGestureEnded";
 
 - (void) configureGestures
 {
-    // Create a long press recognizer to auto-activate the eyedropper tool
+//    // Create a long press recognizer to auto-activate the eyedropper tool
     UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(longPress:)];
     longPress.minimumPressDuration = kDropperActivationDelay;
     longPress.delegate = self;
     [self addGestureRecognizer:longPress];
-    
-    // Create a two finger tap double tap recognizer to auto-fit the doc
-    UITapGestureRecognizer *twoFingerDoubleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(twoFingerDoubleTap:)];
-    twoFingerDoubleTap.numberOfTouchesRequired = 2;
-    twoFingerDoubleTap.numberOfTapsRequired = 2;
-    twoFingerDoubleTap.delegate = self;
-    [self addGestureRecognizer:twoFingerDoubleTap];
-    
-    // Create a two finger tap recognizer to auto-hide the interface
-    UITapGestureRecognizer *twoFingerTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(twoFingerTap:)];
-    twoFingerTap.numberOfTouchesRequired = 2;
-    twoFingerTap.delegate = self;
-    [twoFingerTap requireGestureRecognizerToFail:twoFingerDoubleTap];
-    [self addGestureRecognizer:twoFingerTap];
-    
-    // create a one finger tap to auto-hide or paint a dot
-    UITapGestureRecognizer *oneFingerTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(oneTap:)];
-    oneFingerTap.numberOfTouchesRequired = 1;
-    oneFingerTap.delegate = self;
-    [self addGestureRecognizer:oneFingerTap];
-    
-    // Create a pinch recognizer to scale the canvas
-    UIPinchGestureRecognizer *pinchGesture = [[UIPinchGestureRecognizer alloc]
-                                              initWithTarget:self action:@selector(handlePinchGesture:)];
-    pinchGesture.delegate = self;
-    [self addGestureRecognizer:pinchGesture];
+//
+//    // Create a two finger tap double tap recognizer to auto-fit the doc
+//    UITapGestureRecognizer *twoFingerDoubleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(twoFingerDoubleTap:)];
+//    twoFingerDoubleTap.numberOfTouchesRequired = 2;
+//    twoFingerDoubleTap.numberOfTapsRequired = 2;
+//    twoFingerDoubleTap.delegate = self;
+//    [self addGestureRecognizer:twoFingerDoubleTap];
+//
+//    // Create a two finger tap recognizer to auto-hide the interface
+//    UITapGestureRecognizer *twoFingerTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(twoFingerTap:)];
+//    twoFingerTap.numberOfTouchesRequired = 2;
+//    twoFingerTap.delegate = self;
+//    [twoFingerTap requireGestureRecognizerToFail:twoFingerDoubleTap];
+//    [self addGestureRecognizer:twoFingerTap];
+//
+//    // create a one finger tap to auto-hide or paint a dot
+//    UITapGestureRecognizer *oneFingerTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(oneTap:)];
+//    oneFingerTap.numberOfTouchesRequired = 1;
+//    oneFingerTap.delegate = self;
+//    [self addGestureRecognizer:oneFingerTap];
+//
+//    // Create a pinch recognizer to scale the canvas
+//    UIPinchGestureRecognizer *pinchGesture = [[UIPinchGestureRecognizer alloc]
+//                                              initWithTarget:self action:@selector(handlePinchGesture:)];
+//    pinchGesture.delegate = self;
+//    [self addGestureRecognizer:pinchGesture];
     
     // Create a pan gesture for painting
     WDPanGestureRecognizer *panGesture = [[WDPanGestureRecognizer alloc]
@@ -330,33 +330,37 @@ NSString *WDGestureEndedNotification = @"WDGestureEnded";
 
 - (void) longPress:(UIGestureRecognizer*)gestureRecognizer
 {
-    CGPoint docLoc = [gestureRecognizer locationInView:self];
-    
     if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
-        [controller_ hidePopovers];
-        self.interfaceWasHidden = self.controller.interfaceHidden;
-        [self.controller hideInterface];
-        
-        // make sure the bits are defined
-        colorBits = [painting_ imageDataWithSize:painting_.dimensions backgroundColor:[UIColor whiteColor]];
-        
-        [self displayEyedropperAtPoint:docLoc];
-        self.eyedropper.color = [self colorAtPoint:docLoc];
-    } else if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
-        [self moveEyedropperToPoint:docLoc];
-        self.eyedropper.color = [self colorAtPoint:docLoc];
-    } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
-        WDColor *currentColor = [WDActiveState sharedInstance].paintColor;
-        WDColor *pickedColor = [[self colorAtPoint:docLoc] colorWithAlphaComponent:currentColor.alpha];
-        [WDActiveState sharedInstance].paintColor = pickedColor;
-        [self dismissEyedropper];
-        
-        colorBits = nil;
-        
-        if (!self.interfaceWasHidden) {
-            [self.controller showInterface];
-        }
+        [self testDraw];
     }
+    
+//    CGPoint docLoc = [gestureRecognizer locationInView:self];
+//
+//    if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
+//        [controller_ hidePopovers];
+//        self.interfaceWasHidden = self.controller.interfaceHidden;
+//        [self.controller hideInterface];
+//
+//        // make sure the bits are defined
+//        colorBits = [painting_ imageDataWithSize:painting_.dimensions backgroundColor:[UIColor whiteColor]];
+//
+//        [self displayEyedropperAtPoint:docLoc];
+//        self.eyedropper.color = [self colorAtPoint:docLoc];
+//    } else if (gestureRecognizer.state == UIGestureRecognizerStateChanged) {
+//        [self moveEyedropperToPoint:docLoc];
+//        self.eyedropper.color = [self colorAtPoint:docLoc];
+//    } else if (gestureRecognizer.state == UIGestureRecognizerStateEnded) {
+//        WDColor *currentColor = [WDActiveState sharedInstance].paintColor;
+//        WDColor *pickedColor = [[self colorAtPoint:docLoc] colorWithAlphaComponent:currentColor.alpha];
+//        [WDActiveState sharedInstance].paintColor = pickedColor;
+//        [self dismissEyedropper];
+//
+//        colorBits = nil;
+//
+//        if (!self.interfaceWasHidden) {
+//            [self.controller showInterface];
+//        }
+//    }
 }
 
 - (void) twoFingerDoubleTap:(UIGestureRecognizer*)gestureRecognizer
@@ -547,7 +551,18 @@ NSString *WDGestureEndedNotification = @"WDGestureEnded";
 
 - (void) drawViewInRect:(CGRect)rect
 {
+//    canvasTransform_ = CGAffineTransformMakeScale(1.0/3, 1.0/3);
     float scale = [UIScreen mainScreen].scale;
+    
+    CGAffineTransform transform = CGAffineTransformIdentity;
+    transform = CGAffineTransformTranslate(transform, deviceSpacePivot_.x, deviceSpacePivot_.y);
+    transform = CGAffineTransformScale(transform, 1 / scale, -1 / scale);
+    transform = CGAffineTransformTranslate(transform, -userSpacePivot_.x, -userSpacePivot_.y);
+    
+    transform.tx = roundf(transform.tx);
+    transform.ty = roundf(transform.ty);
+    
+    canvasTransform_ = transform;
     
     [EAGLContext setCurrentContext:self.context];
     
@@ -585,11 +600,11 @@ NSString *WDGestureEndedNotification = @"WDGestureEnded";
         [self renderPhoto:final withTransform:photoTransform_];
     }
     
-    WDShader *blitShader = [self.painting getShader:@"straightBlit"];
-    [WDShadowQuad configureBlit:final withShader:blitShader];
-    for (WDShadowQuad *shadowSegment in self.shadowSegments) {
-        [shadowSegment blitWithScale:self.scale];
-    }
+//    WDShader *blitShader = [self.painting getShader:@"straightBlit"];
+//    [WDShadowQuad configureBlit:final withShader:blitShader];
+//    for (WDShadowQuad *shadowSegment in self.shadowSegments) {
+//        [shadowSegment blitWithScale:self.scale];
+//    }
 
     if (DEBUG_DIRTY_RECTS) {
         WDColor *randomColor = [WDColor randomColor];
@@ -604,6 +619,20 @@ NSString *WDGestureEndedNotification = @"WDGestureEnded";
     WDCheckGLError();
     
     self.dirtyRect = CGRectZero;
+}
+
+- (void)testDraw
+{
+    WDLayer *firstLayer = self.painting.layers.firstObject;
+    
+    
+//    UIImage *image = [firstLayer imageInRect:CGRectMake(0, 0, 300, 300)];
+    
+    
+    
+    
+//    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil);
+//    NSLog(@"123");
 }
 
 - (void) drawWhiteBackground:(GLfloat *)proj

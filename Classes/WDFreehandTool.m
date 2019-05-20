@@ -278,11 +278,8 @@
             accumulatedPath.color = color;
             accumulatedPath.brush = [brush copy];
             changeDocument(painting, [WDAddPath addPath:accumulatedPath erase:eraseMode layer:painting.activeLayer sourcePainting:painting]);
+            [painting.activeLayer commitStroke:strokeBounds_ color:color erase:eraseMode undoable:YES path:accumulatedPath];
         }
-    }
-    
-    if (CGRectIntersectsRect(strokeBounds_, painting.bounds)) {
-        [painting.activeLayer commitStroke:strokeBounds_ color:color erase:eraseMode undoable:YES];
     }
     
     if (_brushSize != [WDActiveState sharedInstance].brush.weight.value){

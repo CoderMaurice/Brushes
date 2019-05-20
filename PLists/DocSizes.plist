@@ -67,6 +67,14 @@
 		<integer>2048</integer>
 	</dict>
 	<dict>
+		<key>Height</key>
+		<integer>1737</integer>
+		<key>Name</key>
+		<string>IP6P CUSTOM</string>
+		<key>Width</key>
+		<real>1125</real>
+	</dict>
+	<dict>
 		<key>Name</key>
 		<string>Custom</string>
 		<key>Custom</key>
